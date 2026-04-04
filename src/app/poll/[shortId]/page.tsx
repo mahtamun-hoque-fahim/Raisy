@@ -4,6 +4,7 @@ import { VotePanel } from '@/components/VotePanel';
 import { CopyButton } from '@/components/CopyButton';
 import { CreatorControls } from '@/components/CreatorControls';
 import { ViewerCount } from '@/components/ViewerCount';
+import { ExportPanel } from '@/components/ExportPanel';
 
 interface Props {
   params: { shortId: string };
@@ -37,10 +38,10 @@ export default async function PollPage({ params, searchParams }: Props) {
   return (
     <>
       <Navbar />
-      <main style={{ position: 'relative', zIndex: 1, padding: '120px 24px 80px', minHeight: '100vh' }}>
+      <main style={{ position: 'relative', zIndex: 1, padding: '120px 24px 100px', minHeight: '100vh' }}>
         <div style={{ maxWidth: 680, margin: '0 auto' }}>
 
-          {/* Just created banner */}
+          {/* Just-created banner */}
           {justCreated && (
             <div style={{
               background: 'rgba(107,255,228,0.07)',
@@ -67,27 +68,37 @@ export default async function PollPage({ params, searchParams }: Props) {
             </div>
           )}
 
-          {/* Vote / Results panel */}
+          {/* Main vote / results panel */}
           <VotePanel poll={poll} />
 
-          {/* Bottom strip: share + viewer count */}
+          {/* Divider */}
+          <div style={{ height: 1, background: '#1E1E2E', margin: '36px 0' }} />
+
+          {/* Share row */}
           <div style={{
-            marginTop: 40, paddingTop: 24,
-            borderTop: '1px solid #1E1E2E',
             display: 'flex', alignItems: 'center',
             justifyContent: 'space-between', gap: 16, flexWrap: 'wrap',
+            marginBottom: 12,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <span style={{ fontSize: 12, color: '#6B6B8A', fontFamily: 'DM Mono, monospace' }}>
-                Share
+                Share poll
               </span>
               <ViewerCount shortId={params.shortId} closed={poll.closed} />
             </div>
             <CopyButton text={pollUrl} label="Copy link" />
           </div>
 
+          {/* Export panel — always visible */}
+          <ExportPanel
+            shortId={params.shortId}
+            question={poll.question}
+            totalVotes={poll.totalVotes}
+          />
+
           {/* Creator controls */}
           <CreatorControls shortId={params.shortId} pollId={poll.id} closed={poll.closed} />
+
         </div>
       </main>
     </>
