@@ -48,3 +48,37 @@ body::after {
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 ::selection { background: rgba(255,212,71,0.2); color: var(--raise); }
+
+/* ── MOBILE RESPONSIVENESS ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+  nav {
+    padding: 14px 20px !important;
+  }
+
+  /* hero section padding */
+  section[style*="padding: 120px 48px"] {
+    padding: 120px 20px 60px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Ensure poll options don't overflow */
+  button[style*="border-radius: 8px"] {
+    font-size: 13px !important;
+  }
+}
+
+/* ── FOCUS VISIBLE ─────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid #FFD447;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── REDUCED MOTION ────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
