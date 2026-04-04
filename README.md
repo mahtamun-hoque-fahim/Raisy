@@ -124,3 +124,46 @@ src/
 ## 📄 License
 
 MIT © MAHTAMUN
+
+---
+
+## ⚡ Phase 2 — Realtime Setup (Ably)
+
+Raisy uses [Ably](https://ably.com) for live push updates. The free tier gives **6M messages/month** — more than enough to start.
+
+### 1. Create a free Ably account
+Go to [ably.com](https://ably.com) → create an app → copy the **API Key**.
+
+### 2. Add to environment
+
+```env
+ABLY_API_KEY=your_root_api_key_here
+NEXT_PUBLIC_ABLY_API_KEY=your_root_api_key_here
+```
+
+> ⚠️ `ABLY_API_KEY` is server-only (used to publish). Clients receive a short-lived token via `/api/ably-token` — the root key is never exposed to the browser.
+
+### How it works
+
+```
+Voter submits vote
+  → POST /api/vote (server)
+  → DB updated
+  → Ably REST publish → poll:{shortId} channel
+  → All subscribers receive { totalVotes, results }
+  → Bars animate smoothly via requestAnimationFrame
+```
+
+**Fallback:** If Ably is not configured, VotePanel falls back to polling every 8 seconds. The app works without Ably — just not instant.
+
+### New in Phase 2
+
+- `src/lib/ably.ts` — server Ably client + channel helpers
+- `src/app/api/ably-token/route.ts` — token auth endpoint
+- `src/hooks/usePollRealtime.ts` — client subscriber hook
+- `src/hooks/useViewerCount.ts` — Ably Presence viewer count
+- `src/components/LiveBadge.tsx` — live/closed/deadline indicator
+- `src/components/ViewerCount.tsx` — "N watching" display
+- Vote API now broadcasts results after every vote
+- Close poll API broadcasts `poll-closed` event
+- Bar animations use `requestAnimationFrame` for buttery smoothness

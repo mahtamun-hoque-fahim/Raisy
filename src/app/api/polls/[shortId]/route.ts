@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, polls, options, votes } from '@/db';
 import { eq } from 'drizzle-orm';
 import { calcResults } from '@/lib/utils';
+import { getAblyServer, pollChannel, EVENTS } from '@/lib/ably';
 
 export async function GET(
   _req: NextRequest,
@@ -11,17 +12,11 @@ export async function GET(
     const poll = await db.query.polls.findFirst({
       where: eq(polls.shortId, params.shortId),
     });
-
-    if (!poll) {
-      return NextResponse.json({ error: 'Poll not found' }, { status: 404 });
-    }
+    if (!poll) return NextResponse.json({ error: 'Poll not found' }, { status: 404 });
 
     // Auto-close if deadline passed
     if (poll.deadline && new Date() > poll.deadline && !poll.closed) {
-      await db
-        .update(polls)
-        .set({ closed: true })
-        .where(eq(polls.id, poll.id));
+      await db.update(polls).set({ closed: true }).where(eq(polls.id, poll.id));
       poll.closed = true;
     }
 
@@ -64,17 +59,23 @@ export async function PATCH(
 ) {
   try {
     const { creatorToken } = await req.json();
-
     const poll = await db.query.polls.findFirst({
       where: eq(polls.shortId, params.shortId),
     });
-
     if (!poll) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (poll.creatorToken !== creatorToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
     await db.update(polls).set({ closed: true }).where(eq(polls.id, poll.id));
+
+    // Broadcast poll-closed event
+    try {
+      const channel = getAblyServer().channels.get(pollChannel(params.shortId));
+      await channel.publish(EVENTS.POLL_CLOSED, { closed: true });
+    } catch (ablyErr) {
+      console.warn('[close] Ably publish failed (non-fatal):', ablyErr);
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {
