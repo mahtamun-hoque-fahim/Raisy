@@ -4,19 +4,7 @@ import { eq, and, inArray } from 'drizzle-orm';
 import { CastVoteSchema } from '@/lib/validations';
 import { hashIp, calcResults } from '@/lib/utils';
 import { getAblyServer, pollChannel, EVENTS } from '@/lib/ably';
-
-// ── In-memory rate limit: ip → timestamps ─────────────────────────────────
-const rateLimitMap = new Map<string, number[]>();
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const window = 60_000;
-  const max = 10;
-  const hits = (rateLimitMap.get(ip) || []).filter((t) => now - t < window);
-  hits.push(now);
-  rateLimitMap.set(ip, hits);
-  return hits.length > max;
-}
+import { checkRateLimit } from '@/lib/ratelimit';
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,8 +13,19 @@ export async function POST(req: NextRequest) {
       req.headers.get('x-real-ip') ||
       '0.0.0.0';
 
-    if (isRateLimited(ip)) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    // Rate limit: 10 votes/min per IP
+    const rl = checkRateLimit(`vote:${ip}`, { max: 10, windowMs: 60_000 });
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please slow down.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil(rl.resetInMs / 1000)),
+            'X-RateLimit-Remaining': '0',
+          },
+        }
+      );
     }
 
     const body = await req.json();
@@ -37,7 +36,6 @@ export async function POST(req: NextRequest) {
 
     const { pollId, optionIds, voterName, fingerprint } = parsed.data;
 
-    // Fetch poll
     const poll = await db.query.polls.findFirst({ where: eq(polls.id, pollId) });
     if (!poll) return NextResponse.json({ error: 'Poll not found' }, { status: 404 });
     if (poll.closed) return NextResponse.json({ error: 'Poll is closed' }, { status: 410 });
@@ -45,7 +43,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Poll deadline has passed' }, { status: 410 });
     }
 
-    // Duplicate check
+    // Duplicate check: fingerprint per poll
     const existing = await db
       .select({ id: votes.id })
       .from(votes)
@@ -70,18 +68,15 @@ export async function POST(req: NextRequest) {
 
     const ipHash = hashIp(ip);
 
-    // Insert votes
     await db.insert(votes).values(
       optionIds.map((optionId) => ({
-        pollId,
-        optionId,
+        pollId, optionId,
         voterName: poll.anonymous ? null : (voterName || null),
-        fingerprint,
-        ipHash,
+        fingerprint, ipHash,
       }))
     );
 
-    // ── REALTIME: fetch fresh results and broadcast ────────────────────────
+    // Broadcast updated results via Ably
     const [allOptions, allVotes] = await Promise.all([
       db.select().from(options).where(eq(options.pollId, pollId)),
       db.select({ option_id: votes.optionId }).from(votes).where(eq(votes.pollId, pollId)),
@@ -92,18 +87,17 @@ export async function POST(req: NextRequest) {
       allVotes
     );
 
-    // Fire-and-forget publish (don't block the response)
     try {
       const channel = getAblyServer().channels.get(pollChannel(poll.shortId));
-      await channel.publish(EVENTS.VOTE_CAST, {
-        totalVotes: allVotes.length,
-        results,
-      });
+      await channel.publish(EVENTS.VOTE_CAST, { totalVotes: allVotes.length, results });
     } catch (ablyErr) {
       console.warn('[vote] Ably publish failed (non-fatal):', ablyErr);
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json(
+      { success: true },
+      { headers: { 'X-RateLimit-Remaining': String(rl.remaining) } }
+    );
   } catch (err) {
     console.error('[POST /api/vote]', err);
     return NextResponse.json({ error: 'Failed to cast vote' }, { status: 500 });

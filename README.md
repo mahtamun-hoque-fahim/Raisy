@@ -2,42 +2,47 @@
 
 > Real-time polls. No sign-up. Share a link, get instant answers.
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/mahtamun-hoque-fahim/Raisy)
+
 **Raisy** cuts through noisy group chats and slow decision-making. Create a poll, share the link, watch votes roll in live — no account needed for anyone.
 
 ---
 
-## ✨ Features (Phase 1 MVP)
+## ✨ Features
 
-- **Zero sign-up** — creators and voters need no account
-- **Single & multiple choice** polls
-- **Anonymous or named** voting
-- **Optional deadline** — polls auto-close when time runs out
-- **Live results** — auto-refreshes every 5 seconds
-- **Duplicate vote prevention** — browser fingerprint + cookie lock
-- **Creator controls** — close your poll early from the results page
-- **Share link** — one-click copy, works anywhere
-
----
-
-## 🗺️ Roadmap
-
-| Phase | Status | What |
-|---|---|---|
-| 1 — Core MVP | ✅ Done | Create, vote, results, share |
-| 2 — Realtime | 🔜 Next | WebSocket live push (Ably) |
-| 3 — Features | 🔜 | CSV/PDF export, QR code |
-| 4 — Polish | 🔜 | Framer Motion, OG images, skeletons |
-| 5 — Launch | 🔜 | Analytics, SEO, ProductHunt |
+| Feature | Status |
+|---|---|
+| Zero sign-up — creators and voters | ✅ |
+| Single & multiple choice polls | ✅ |
+| Anonymous or named voting | ✅ |
+| Optional deadline with auto-close | ✅ |
+| Live results via Ably WebSocket push | ✅ |
+| Smooth Framer Motion animations | ✅ |
+| Confetti burst on vote | ✅ |
+| Duplicate vote prevention (fingerprint) | ✅ |
+| Drag-to-reorder options | ✅ |
+| CSV & JSON export | ✅ |
+| QR code share (SVG, downloadable) | ✅ |
+| Creator close-poll control | ✅ |
+| Live viewer count (Ably Presence) | ✅ |
+| OG images for link previews | ✅ |
+| Plausible analytics (privacy-first) | ✅ |
+| Health check endpoint | ✅ |
+| Security headers (Vercel) | ✅ |
 
 ---
 
 ## 🛠️ Tech Stack
 
 - **Framework** — Next.js 14 App Router + TypeScript
-- **Styling** — Tailwind CSS + design tokens
+- **Styling** — Tailwind CSS + design tokens (Syne / DM Mono / Fraunces)
+- **Animations** — Framer Motion 12
 - **Database** — Neon (PostgreSQL) + Drizzle ORM
+- **Realtime** — Ably WebSocket (token auth, Presence)
 - **Validation** — Zod
 - **Short IDs** — nanoid
+- **OG Images** — @vercel/og (Edge runtime)
+- **Analytics** — Plausible (optional, privacy-first)
 - **Deployment** — Vercel
 
 ---
@@ -58,12 +63,13 @@ npm install
 cp .env.example .env.local
 ```
 
-Fill in `.env.local`:
-
-```env
-DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
+| Variable | Required | Where to get it |
+|---|---|---|
+| `DATABASE_URL` | ✅ | [neon.tech](https://neon.tech) → Connection string |
+| `NEXT_PUBLIC_APP_URL` | ✅ | `http://localhost:3000` in dev, your domain in prod |
+| `ABLY_API_KEY` | ✅ for realtime | [ably.com](https://ably.com) → Root API Key |
+| `IP_SALT` | ✅ | Any random secret string |
+| `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | Optional | Your domain on Plausible |
 
 ### 3. Push the database schema
 
@@ -71,13 +77,32 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 npm run db:push
 ```
 
-### 4. Run dev server
+### 4. Run locally
 
 ```bash
 npm run dev
 ```
 
-Open http://localhost:3000
+Open [http://localhost:3000](http://localhost:3000)
+
+---
+
+## ☁️ Deploy to Vercel
+
+### One-click
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/mahtamun-hoque-fahim/Raisy)
+
+### Manual
+
+```bash
+npm i -g vercel
+vercel --prod
+```
+
+Set the required environment variables in **Vercel Dashboard → Settings → Environment Variables**.
+
+After deploying, update `NEXT_PUBLIC_APP_URL` to your production URL and redeploy.
 
 ---
 
@@ -87,83 +112,98 @@ Open http://localhost:3000
 src/
 ├── app/
 │   ├── api/
-│   │   ├── polls/route.ts           # POST create poll
-│   │   ├── polls/[shortId]/route.ts # GET poll | PATCH close
+│   │   ├── ably-token/route.ts      # Token auth (keeps root key server-side)
+│   │   ├── health/route.ts          # DB health check
+│   │   ├── og/route.tsx             # OG image (Edge, @vercel/og)
+│   │   ├── polls/
+│   │   │   ├── route.ts             # POST create poll
+│   │   │   └── [shortId]/
+│   │   │       ├── route.ts         # GET poll | PATCH close
+│   │   │       ├── export/route.ts  # GET ?format=csv|json
+│   │   │       └── qr/route.ts      # GET QR code SVG
 │   │   └── vote/route.ts            # POST cast vote
 │   ├── create/page.tsx
 │   ├── poll/[shortId]/page.tsx
-│   ├── layout.tsx
+│   ├── error.tsx                    # Global error boundary
+│   ├── not-found.tsx
+│   ├── robots.ts
+│   ├── sitemap.ts
+│   ├── layout.tsx                   # SEO + Analytics
 │   ├── page.tsx
 │   └── globals.css
 ├── components/
-│   ├── Navbar.tsx
-│   ├── CreatePollForm.tsx
-│   ├── VotePanel.tsx
-│   ├── ResultBar.tsx
+│   ├── Analytics.tsx                # Plausible script
+│   ├── Confetti.tsx                 # Canvas particle burst
 │   ├── CopyButton.tsx
-│   └── CreatorControls.tsx
+│   ├── CreatePollForm.tsx           # Full form w/ drag reorder
+│   ├── CreatorControls.tsx          # Close poll (creator only)
+│   ├── DeadlinePicker.tsx           # Preset chips + custom date
+│   ├── ExportPanel.tsx              # CSV, JSON, QR download
+│   ├── HeroSection.tsx              # Animated landing page
+│   ├── LiveBadge.tsx                # Live/Closed/Countdown
+│   ├── Navbar.tsx
+│   ├── PageWrapper.tsx
+│   ├── PollPageAnimated.tsx
+│   ├── ResultBar.tsx
+│   ├── Skeletons.tsx                # Shimmer loading states
+│   ├── ViewerCount.tsx              # Ably Presence count
+│   └── VotePanel.tsx                # Voting + live results
 ├── db/
 │   ├── index.ts
 │   └── schema.ts
+├── hooks/
+│   ├── usePollRealtime.ts           # Ably subscriber
+│   └── useViewerCount.ts           # Ably Presence
 └── lib/
+    ├── ably.ts
+    ├── motion.ts                    # Framer Motion variants
+    ├── ratelimit.ts                 # Sliding window rate limiter
     ├── utils.ts
     └── validations.ts
 ```
 
 ---
 
-## 🔒 Anti-abuse
+## 🔌 API Reference
 
-- Browser fingerprint — 1 vote per device per poll
-- IP hashed (never stored plain-text)
-- Rate limiting — 10 requests/min per IP
-- Creator token (UUID) stored in localStorage to manage polls
+| Method | Route | Description |
+|---|---|---|
+| `POST` | `/api/polls` | Create a poll |
+| `GET` | `/api/polls/:shortId` | Fetch poll + results |
+| `PATCH` | `/api/polls/:shortId` | Close poll (creator token required) |
+| `POST` | `/api/vote` | Cast vote |
+| `GET` | `/api/polls/:shortId/export?format=csv` | Download CSV results |
+| `GET` | `/api/polls/:shortId/export?format=json` | Download JSON results |
+| `GET` | `/api/polls/:shortId/qr` | QR code SVG |
+| `GET` | `/api/og?q=...&v=...&o=...` | OG image |
+| `GET` | `/api/ably-token` | Short-lived Ably token |
+| `GET` | `/api/health` | DB health check |
+
+---
+
+## 🔒 Security
+
+- **No raw IPs stored** — IPs are SHA-256 hashed with a salt
+- **Rate limiting** — 10 votes/minute per IP (upgradeable to Upstash Redis)
+- **Token auth for Ably** — clients receive restricted tokens, never the root key
+- **Creator token** — UUID stored in localStorage, required to close a poll
+- **Security headers** — `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` via `vercel.json`
+- **HTTPS only** — enforced by Vercel
+
+---
+
+## 🗺️ Build Phases
+
+| Phase | What shipped |
+|---|---|
+| 1 ✅ | Create poll, vote, results, short links, anti-abuse |
+| 2 ✅ | Ably WebSocket push, viewer presence |
+| 3 ✅ | CSV/JSON export, QR code, deadline picker, drag reorder |
+| 4 ✅ | Framer Motion, confetti, skeletons, animated hero |
+| 5 ✅ | OG images, SEO, analytics, error boundary, health check, rate limit module, vercel.json |
 
 ---
 
 ## 📄 License
 
-MIT © MAHTAMUN
-
----
-
-## ⚡ Phase 2 — Realtime Setup (Ably)
-
-Raisy uses [Ably](https://ably.com) for live push updates. The free tier gives **6M messages/month** — more than enough to start.
-
-### 1. Create a free Ably account
-Go to [ably.com](https://ably.com) → create an app → copy the **API Key**.
-
-### 2. Add to environment
-
-```env
-ABLY_API_KEY=your_root_api_key_here
-NEXT_PUBLIC_ABLY_API_KEY=your_root_api_key_here
-```
-
-> ⚠️ `ABLY_API_KEY` is server-only (used to publish). Clients receive a short-lived token via `/api/ably-token` — the root key is never exposed to the browser.
-
-### How it works
-
-```
-Voter submits vote
-  → POST /api/vote (server)
-  → DB updated
-  → Ably REST publish → poll:{shortId} channel
-  → All subscribers receive { totalVotes, results }
-  → Bars animate smoothly via requestAnimationFrame
-```
-
-**Fallback:** If Ably is not configured, VotePanel falls back to polling every 8 seconds. The app works without Ably — just not instant.
-
-### New in Phase 2
-
-- `src/lib/ably.ts` — server Ably client + channel helpers
-- `src/app/api/ably-token/route.ts` — token auth endpoint
-- `src/hooks/usePollRealtime.ts` — client subscriber hook
-- `src/hooks/useViewerCount.ts` — Ably Presence viewer count
-- `src/components/LiveBadge.tsx` — live/closed/deadline indicator
-- `src/components/ViewerCount.tsx` — "N watching" display
-- Vote API now broadcasts results after every vote
-- Close poll API broadcasts `poll-closed` event
-- Bar animations use `requestAnimationFrame` for buttery smoothness
+MIT © [MAHTAMUN](https://mahtamunhoquefahim.pages.dev)
