@@ -2,13 +2,6 @@
 
 import { motion } from 'framer-motion';
 
-const shimmer = {
-  animate: {
-    backgroundPosition: ['200% 0', '-200% 0'],
-    transition: { duration: 2, repeat: Infinity, ease: 'linear' },
-  },
-};
-
 const shimmerStyle: React.CSSProperties = {
   background: 'linear-gradient(90deg, #1E1E2E 25%, #2A2A3E 50%, #1E1E2E 75%)',
   backgroundSize: '200% 100%',
@@ -20,8 +13,8 @@ function Bone({ w = '100%', h = 16, radius = 6, mb = 0 }: {
 }) {
   return (
     <motion.div
-      variants={shimmer}
-      animate="animate"
+      animate={{ backgroundPosition: ['200% 0', '-200% 0'] }}
+      transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
       style={{ ...shimmerStyle, width: w, height: h, borderRadius: radius, marginBottom: mb }}
     />
   );
