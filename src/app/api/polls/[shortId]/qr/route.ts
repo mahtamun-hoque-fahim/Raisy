@@ -7,10 +7,11 @@ import QRCode from 'qrcode';
  */
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { shortId: string } }
+  { params }: { params: Promise<{ shortId: string }> }
 ) {
+  const { shortId } = await params;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const pollUrl = `${appUrl}/poll/${params.shortId}`;
+  const pollUrl = `${appUrl}/poll/${shortId}`;
 
   try {
     const svg = await QRCode.toString(pollUrl, {

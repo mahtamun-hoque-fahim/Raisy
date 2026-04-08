@@ -6,11 +6,12 @@ import { getAblyServer, pollChannel, EVENTS } from '@/lib/ably';
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { shortId: string } }
+  { params }: { params: Promise<{ shortId: string }> }
 ) {
   try {
+    const { shortId } = await params;
     const poll = await db.query.polls.findFirst({
-      where: eq(polls.shortId, params.shortId),
+      where: eq(polls.shortId, shortId),
     });
     if (!poll) return NextResponse.json({ error: 'Poll not found' }, { status: 404 });
 
@@ -55,12 +56,13 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { shortId: string } }
+  { params }: { params: Promise<{ shortId: string }> }
 ) {
   try {
+    const { shortId } = await params;
     const { creatorToken } = await req.json();
     const poll = await db.query.polls.findFirst({
-      where: eq(polls.shortId, params.shortId),
+      where: eq(polls.shortId, shortId),
     });
     if (!poll) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (poll.creatorToken !== creatorToken) {
@@ -71,7 +73,7 @@ export async function PATCH(
 
     // Broadcast poll-closed event
     try {
-      const channel = getAblyServer().channels.get(pollChannel(params.shortId));
+      const channel = getAblyServer().channels.get(pollChannel(shortId));
       await channel.publish(EVENTS.POLL_CLOSED, { closed: true });
     } catch (ablyErr) {
       console.warn('[close] Ably publish failed (non-fatal):', ablyErr);

@@ -3,8 +3,8 @@ import { Navbar } from '@/components/Navbar';
 import { PollPageAnimated } from '@/components/PollPageAnimated';
 
 interface Props {
-  params: { shortId: string };
-  searchParams: { created?: string };
+  params: Promise<{ shortId: string }>;
+  searchParams: Promise<{ created?: string }>;
 }
 
 async function getPoll(shortId: string) {
@@ -15,7 +15,8 @@ async function getPoll(shortId: string) {
 }
 
 export async function generateMetadata({ params }: Props) {
-  const poll = await getPoll(params.shortId);
+  const { shortId } = await params;
+  const poll = await getPoll(shortId);
   if (!poll) return { title: 'Poll not found — Raisy' };
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -44,18 +45,20 @@ export async function generateMetadata({ params }: Props) {
 }
 
 export default async function PollPage({ params, searchParams }: Props) {
-  const poll = await getPoll(params.shortId);
+  const { shortId } = await params;
+  const { created } = await searchParams;
+  const poll = await getPoll(shortId);
   if (!poll) notFound();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const pollUrl = `${appUrl}/poll/${params.shortId}`;
+  const pollUrl = `${appUrl}/poll/${shortId}`;
   return (
     <>
       <Navbar />
       <PollPageAnimated
         poll={poll}
         pollUrl={pollUrl}
-        justCreated={searchParams.created === '1'}
-        shortId={params.shortId}
+        justCreated={created === '1'}
+        shortId={shortId}
       />
     </>
   );

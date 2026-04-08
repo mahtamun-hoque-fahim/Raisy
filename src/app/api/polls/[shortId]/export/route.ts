@@ -10,13 +10,14 @@ import { calcResults } from '@/lib/utils';
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { shortId: string } }
+  { params }: { params: Promise<{ shortId: string }> }
 ) {
+  const { shortId } = await params;
   const format = req.nextUrl.searchParams.get('format') ?? 'csv';
 
   try {
     const poll = await db.query.polls.findFirst({
-      where: eq(polls.shortId, params.shortId),
+      where: eq(polls.shortId, shortId),
     });
     if (!poll) return NextResponse.json({ error: 'Poll not found' }, { status: 404 });
 
@@ -71,7 +72,7 @@ export async function GET(
       return new NextResponse(JSON.stringify(payload, null, 2), {
         headers: {
           'Content-Type': 'application/json',
-          'Content-Disposition': `attachment; filename="raisy-${params.shortId}.json"`,
+          'Content-Disposition': `attachment; filename="raisy-${shortId}.json"`,
         },
       });
     }
@@ -122,7 +123,7 @@ export async function GET(
     return new NextResponse(csv, {
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': `attachment; filename="raisy-${params.shortId}.csv"`,
+        'Content-Disposition': `attachment; filename="raisy-${shortId}.csv"`,
       },
     });
   } catch (err) {
